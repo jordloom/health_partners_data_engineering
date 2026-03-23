@@ -11,6 +11,7 @@ DATA_DIR = "hospital_datasets"
 META_FILE = os.path.join(DATA_DIR, "metadata.json")
 MAX_WORKERS = 5
 
+# TODO need to understand what is going on here
 def to_snake_case(s):
     s = s.lower()
     s = re.sub(r"[’'\".,\-()/]", '', s)
@@ -18,36 +19,39 @@ def to_snake_case(s):
     s = re.sub(r"__+", '_', s)
     return s.strip('_')
 
+# TODO need to understand what is going on here
 def load_metadata():
     if os.path.exists(META_FILE):
         with open(META_FILE, "r") as f:
             return json.load(f)
     return {}
 
+# TODO need to understand what is going on here
 def save_metadata(meta):
     with open(META_FILE, "w") as f:
         json.dump(meta, f, indent=2)
 
 def process_dataset(ds, meta):
-    dist = ds.get('distribution', [])
-    if not dist:
+    distribution = ds.get('distribution', [])
+    if not distribution:
         return None
-    url = dist[0].get('downloadURL')
-    if not url or not url.endswith('.csv'):
+    # TODO: handle multiple distributions if needed, currently just takes the first one
+    download_url = distribution[0].get('downloadURL')
+    if not download_url or not download_url.endswith('.csv'):
         return None
     dataset_id = ds['identifier']
     modified = ds.get('modified')
-    fname = f"{dataset_id}.csv"
-    out_path = os.path.join(DATA_DIR, fname)
+    filename = f"{dataset_id}.csv"
+    out_path = os.path.join(DATA_DIR, filename)
     # Check if already up-to-date
     if meta.get(dataset_id, '') == modified and os.path.exists(out_path):
         return None
-    # Download CSV
-    resp = requests.get(url)
+    # Retrieve the data
+    resp = requests.get(download_url)
     if resp.status_code != 200:
-        print(f"Failed to download {url}")
+        print(f"Failed to download {download_url}")
         return None
-    # Process CSV
+    # Process the CSV data into a DataFrame
     try:
         df = pd.read_csv(pd.compat.StringIO(resp.text))
     except Exception:
@@ -57,19 +61,22 @@ def process_dataset(ds, meta):
             f.write(resp.content)
         df = pd.read_csv(tmp_path)
         os.remove(tmp_path)
-    # Convert columns to snake_case
+    # Clean the column names
     df.columns = [to_snake_case(col) for col in df.columns]
     df.to_csv(out_path, index=False)
-    print(f"Downloaded and processed: {fname}")
+    print(f"Downloaded and processed: {filename}")
     return dataset_id, modified
 
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     meta = load_metadata()
-    resp = requests.get(API_URL)
-    resp.raise_for_status()
-    data = resp.json()
+    response = requests.get(API_URL)
+    # TODO understand what this line does
+    response.raise_for_status()
+    data = response.json()
+    # Filter datasets by theme
     hospital_datasets = [ds for ds in data if ds.get('theme') == [THEME]]
+    # Process the datasets asynchronously
     tasks = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         for ds in hospital_datasets:
