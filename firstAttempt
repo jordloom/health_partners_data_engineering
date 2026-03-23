@@ -1,3 +1,7 @@
+# @author: Jordan Loomis
+# This script retrieves datasets from the CMS provider data API, filters them by the "Hospitals" theme, 
+# and processes each dataset by downloading it, cleaning the column names, and saving it as a CSV file. 
+
 import requests
 import os
 import pandas
