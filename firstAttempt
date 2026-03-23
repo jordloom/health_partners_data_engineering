@@ -53,6 +53,7 @@ def main():
 
     # Filter datasets by theme
     hospital_data = [ds for ds in data if ds.get('theme') == [THEME]]
+    print(f"Found {len(hospital_data)} datasets related to {THEME}.")
     # TESTING - wanting to validate the processing of a single dataset before doing it asynchrously
     process_dataset(hospital_data[0])
 
