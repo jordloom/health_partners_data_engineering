@@ -71,11 +71,12 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     meta = load_metadata()
     response = requests.get(API_URL)
-    # TODO understand what this line does
     response.raise_for_status()
     data = response.json()
     # Filter datasets by theme
     hospital_datasets = [ds for ds in data if ds.get('theme') == [THEME]]
+    # print(f"Found {len(hospital_datasets)} datasets related to {THEME}.")
+
     # Process the datasets asynchronously
     tasks = []
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
