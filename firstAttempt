@@ -1,0 +1,66 @@
+# @author: Jordan Loomis
+# This script retrieves datasets from the CMS provider data API, filters them by the "Hospitals" theme, 
+# and processes each dataset by downloading it, cleaning the column names, and saving it as a CSV file. 
+
+import requests
+import os
+import pandas
+from concurrent.futures import ThreadPoolExecutor
+from io import StringIO
+
+THEME = 'Hospitals'
+API_URL = "https://data.cms.gov/provider-data/api/1/metastore/schemas/dataset/items"
+DATA_DIR = "hospital_datasets"
+
+def to_snake_case(column_name):
+    # TODO: handle special characters and multiple spaces
+    return column_name.lower().replace(' ', '_')
+
+def process_dataset(dataset):
+    distribution = dataset['distribution']
+    # TODO: handle multiple distributions if they exist
+    download_url = distribution[0]['downloadURL']
+    dataset_id = dataset['identifier']
+    # TODO: only want to download file if it has been modified since last download
+    modified_date = dataset['modified']
+
+    # Download the dataset
+    response = requests.get(download_url)
+    if response.status_code != 200:
+        print(f"Failed to download {download_url}")
+        return None
+    df = pandas.read_csv(StringIO(response.text))
+
+    # Clean the column names
+    df.columns = [to_snake_case(col) for col in df.columns]
+
+    # Output the file into a csv file
+    filename = f"{dataset_id}.csv"
+    df.to_csv(f"{DATA_DIR}/{filename}", index=False)
+    print(f"Downloaded and processed: {filename}")
+    return dataset_id
+
+def main():
+    # Make data directory if it doesn't exist
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+
+    # Retrieve the dataset from API
+    response = requests.get(API_URL)
+    if response.status_code != 200:
+        print(f"Error: Request failed with status code {response.status_code}")
+    data = response.json()
+
+    # Filter datasets by theme
+    hospital_data = [ds for ds in data if ds.get('theme') == [THEME]]
+    print(f"Found {len(hospital_data)} datasets related to {THEME}.")
+    # TESTING - wanting to validate the processing of a single dataset before doing it asynchrously
+    process_dataset(hospital_data[0])
+
+    # TODO: Process the datasets asynchrously
+    # with ThreadPoolExecutor(max_workers=5) as executor:
+    #     for ds in hospital_data:
+    #         executor.submit(process_dataset, ds)
+
+if __name__ == "__main__":
+    main()
